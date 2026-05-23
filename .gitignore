@@ -8,5 +8,11 @@ app/*.spec
 app/yt_transcriber_config.json
 app/installer/*.sed
 
+# Never commit signing secrets
+*.pfx
+*.p12
+*.cer
+*.crt
+
 # Local scratch/private files
 app/email BR Warburg Bank.txt

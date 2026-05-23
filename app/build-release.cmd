@@ -8,6 +8,8 @@ set RELEASE_DIR=%~dp0release\Digital-World-YouTube-Transcriber-%VERSION%
 python build_exe.py
 python -m PyInstaller --noconfirm --windowed --onefile --name "Digital-World-YouTube-Transcriber" --icon "%~dp0assets\logo.ico" --add-data "%~dp0assets;assets" "%~dp0youtube_transcriber.pyw"
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sign-release.ps1" -FilePath "%~dp0dist\%APP_EXE%"
+
 if exist "%RELEASE_DIR%" rmdir /s /q "%RELEASE_DIR%"
 mkdir "%RELEASE_DIR%"
 mkdir "%RELEASE_DIR%\installer"
@@ -31,6 +33,7 @@ if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
 )
 
 if exist "%~dp0dist\Digital-World-YouTube-Transcriber-Installer-%VERSION%.exe" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sign-release.ps1" -FilePath "%~dp0dist\Digital-World-YouTube-Transcriber-Installer-%VERSION%.exe"
     copy /y "%~dp0dist\Digital-World-YouTube-Transcriber-Installer-%VERSION%.exe" "%RELEASE_DIR%\Digital-World-YouTube-Transcriber-Installer-%VERSION%.exe" >nul
 )
 

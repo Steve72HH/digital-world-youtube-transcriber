@@ -63,6 +63,25 @@ Wenn Inno Setup 6 installiert ist, erzeugt `app\build-release.cmd` automatisch e
 
 Ohne Inno Setup wird trotzdem ein Release-Ordner mit EXE, README, Runtime-Anforderungen und Installer-Skript erstellt.
 
+## Code Signing und SmartScreen
+
+Windows Defender SmartScreen warnt bei unbekannten oder unsignierten Apps. Fuer eine oeffentliche Version sollte die EXE mit einem Code-Signing-Zertifikat oder einem Microsoft Signing-Dienst signiert werden. Der Build unterstuetzt das bereits automatisch:
+
+```powershell
+$env:CODESIGN_CERT_PATH = "C:\Pfad\zu\certificate.pfx"
+$env:CODESIGN_CERT_PASSWORD = "pfx-passwort"
+.\app\build-release.cmd
+```
+
+Alternativ kann ein Zertifikat aus dem Windows-Zertifikatsspeicher genutzt werden:
+
+```powershell
+$env:CODESIGN_CERT_SUBJECT = "Digital World"
+.\app\build-release.cmd
+```
+
+Ohne Zertifikat wird das Signieren uebersprungen und SmartScreen kann weiterhin erscheinen.
+
 ## Voraussetzungen
 
 Fuer die Transkription braucht Windows:
