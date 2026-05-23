@@ -1,5 +1,5 @@
 #define MyAppName "Digital World YouTube Transcriber"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "digital-world.dev"
 #define MyAppExeName "Digital-World-YouTube-Transcriber.exe"
 

@@ -15,7 +15,7 @@ from tkinter import ttk
 
 
 APP_NAME = "Digital World YouTube Transcriber"
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 APP_CREATED = "Mai 2026"
 APP_WEBSITE = "digital-world.dev"
 APP_CONTACT = "kontakt@digital-world.dev"
@@ -195,6 +195,13 @@ def executable_exists(path: str) -> bool:
         return bool(path and path.lower().endswith(".exe"))
 
 
+def valid_executable_or_empty(path: str, tool_name: str) -> str:
+    path = path.strip()
+    if executable_exists(path):
+        return path
+    return find_executable(tool_name)
+
+
 def find_executable(name: str) -> str:
     found = shutil.which(name)
     if found:
@@ -263,6 +270,18 @@ def stream_process(command: list[str], cwd: Path, log) -> tuple[int, list[str]]:
     return process.wait(), lines
 
 
+def command_error(command_name: str, code: int, lines: list[str]) -> RuntimeError:
+    important = [
+        line
+        for line in lines[-14:]
+        if line.strip() and not line.lstrip().startswith("[download]")
+    ]
+    detail = "\n".join(important[-6:])
+    if detail:
+        return RuntimeError(f"{command_name} wurde mit Code {code} beendet.\n\n{detail}")
+    return RuntimeError(f"{command_name} wurde mit Code {code} beendet.")
+
+
 def newest_media_file(output_dir: Path, since: float) -> Path | None:
     files = [
         path
@@ -284,10 +303,8 @@ class TranscriberApp:
         self.root.minsize(760, 640)
 
         self.config = load_config()
-        if not self.config["yt_dlp_path"]:
-            self.config["yt_dlp_path"] = find_executable("yt-dlp")
-        if not self.config["whisper_path"]:
-            self.config["whisper_path"] = find_executable("whisper")
+        self.config["yt_dlp_path"] = valid_executable_or_empty(self.config["yt_dlp_path"], "yt-dlp")
+        self.config["whisper_path"] = valid_executable_or_empty(self.config["whisper_path"], "whisper")
 
         self.url = StringVar(value="")
         self.output_dir = StringVar(value=self.config["output_dir"])
@@ -559,6 +576,10 @@ class TranscriberApp:
         output_dir = Path(self.output_dir.get().strip())
         yt_dlp = self.yt_dlp_path.get().strip()
         whisper = self.whisper_path.get().strip()
+        yt_dlp = valid_executable_or_empty(yt_dlp, "yt-dlp")
+        whisper = valid_executable_or_empty(whisper, "whisper")
+        self.yt_dlp_path.set(yt_dlp)
+        self.whisper_path.set(whisper)
         if not (self.export_txt.get() or self.export_md.get() or self.export_pdf.get()):
             messagebox.showwarning(APP_NAME, "Bitte mindestens ein Exportformat auswählen.")
             return
@@ -596,7 +617,7 @@ class TranscriberApp:
                 yt_command[1:1] = ["--js-runtimes", js_runtime]
             code, lines = stream_process(yt_command, output_dir, self.log)
             if code != 0:
-                raise RuntimeError(f"yt-dlp wurde mit Code {code} beendet.")
+                raise command_error("yt-dlp", code, lines)
 
             video_path = self.detect_downloaded_file(output_dir, lines, started)
             if not video_path:
@@ -620,7 +641,7 @@ class TranscriberApp:
 
             code, _ = stream_process(whisper_command, output_dir, self.log)
             if code != 0:
-                raise RuntimeError(f"Whisper wurde mit Code {code} beendet.")
+                raise command_error("Whisper", code, _)
 
             self.create_exports(video_path, output_dir)
             self.log("Fertig. Transkript-Export liegt im gleichen Ordner.")
