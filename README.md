@@ -22,7 +22,7 @@ Desktop-App fuer Windows, die YouTube- und TikTok-Videos mit `yt-dlp` herunterla
 ## App-Info
 
 - App Name: Digital World YouTube Transcriber
-- Version: 1.1.0
+- Version: 1.1.1
 - Erstellt: Mai 2026
 - Website: https://digital-world.dev
 - Kontakt: kontakt@digital-world.dev
@@ -42,10 +42,10 @@ Die fertige Windows-App liegt nach dem Build hier:
 Das aktuelle Release enthaelt einen einfachen Windows-Installer:
 
 ```powershell
-.\app\release\Digital-World-YouTube-Transcriber-1.1.0\Digital-World-YouTube-Transcriber-Installer-1.1.0.exe
+.\app\release\Digital-World-YouTube-Transcriber-1.1.1\Digital-World-YouTube-Transcriber-Installer-1.1.1.exe
 ```
 
-Dieser Installer kopiert die App nach `%LOCALAPPDATA%\Programs\Digital World YouTube Transcriber`, erstellt Verknuepfungen und startet danach das Dependency-Skript fuer `yt-dlp`, OpenAI Whisper und FFmpeg.
+Dieser Installer fragt den Installationsort ab, erstellt Verknuepfungen und startet danach das Dependency-Skript fuer `yt-dlp`, OpenAI Whisper und FFmpeg. Wird kein Ordner gewaehlt, nutzt er `%LOCALAPPDATA%\Programs\Digital World YouTube Transcriber`.
 
 Das Projekt enthaelt ein Inno-Setup-Skript:
 
@@ -96,10 +96,10 @@ Release neu bauen:
 Der Build erzeugt:
 
 - `app\dist\Digital-World-YouTube-Transcriber.exe`
-- `app\dist\Digital-World-YouTube-Transcriber-Installer-1.1.0.exe`
-- `app\release\Digital-World-YouTube-Transcriber-1.1.0\`
-- `app\release\Digital-World-YouTube-Transcriber-1.1.0.zip`
-- optional `app\dist\Digital-World-YouTube-Transcriber-Setup-1.1.0.exe`, wenn Inno Setup installiert ist
+- `app\dist\Digital-World-YouTube-Transcriber-Installer-1.1.1.exe`
+- `app\release\Digital-World-YouTube-Transcriber-1.1.1\`
+- `app\release\Digital-World-YouTube-Transcriber-1.1.1.zip`
+- optional `app\dist\Digital-World-YouTube-Transcriber-Setup-1.1.1.exe`, wenn Inno Setup installiert ist
 
 ## GitHub-Beschreibung
 

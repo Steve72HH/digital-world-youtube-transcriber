@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $base = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $base "dist"
 $installer = Join-Path $base "installer"
-$version = "1.1.0"
+$version = "1.1.1"
 $output = Join-Path $dist "Digital-World-YouTube-Transcriber-Installer-$version.exe"
 $sed = Join-Path $installer "Digital-World-YouTube-Transcriber.sed"
 

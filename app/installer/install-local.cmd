@@ -2,8 +2,17 @@
 setlocal
 
 set "APP_NAME=Digital World YouTube Transcriber"
-set "TARGET=%LOCALAPPDATA%\Programs\Digital World YouTube Transcriber"
+set "DEFAULT_TARGET=%LOCALAPPDATA%\Programs\Digital World YouTube Transcriber"
+set "TARGET=%DEFAULT_TARGET%"
 set "STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Digital World YouTube Transcriber"
+
+echo Bitte Installationsordner auswaehlen. Abbrechen nutzt den Standardordner:
+echo %DEFAULT_TARGET%
+echo.
+
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Installationsordner fuer Digital World YouTube Transcriber waehlen'; $dialog.SelectedPath = '%DEFAULT_TARGET%'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath }"`) do set "TARGET=%%I"
+
+if "%TARGET%"=="" set "TARGET=%DEFAULT_TARGET%"
 
 echo Installiere %APP_NAME% nach:
 echo %TARGET%

@@ -15,7 +15,7 @@ from tkinter import ttk
 
 
 APP_NAME = "Digital World YouTube Transcriber"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 APP_CREATED = "Mai 2026"
 APP_WEBSITE = "digital-world.dev"
 APP_CONTACT = "kontakt@digital-world.dev"
