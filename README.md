@@ -1,0 +1,111 @@
+# Digital World YouTube Transcriber
+
+Desktop-App fuer Windows, die YouTube-Videos mit `yt-dlp` herunterlaedt und sie anschliessend mit OpenAI Whisper transkribiert. Die Videodatei und das Texttranskript landen standardmaessig im gleichen Zielordner, z. B. `I:\transkriptions`.
+
+![Digital World YouTube Transcriber](app/assets/logo.png)
+
+## Features
+
+- YouTube-URL einfuegen und Download starten
+- Automatische Ablage im konfigurierbaren Zielordner
+- Transkription mit OpenAI Whisper
+- Whisper-Modell waehlen: `tiny`, `base`, `small`, `medium`, `large`
+- Sprache waehlen: Deutsch, Englisch oder Auto-Erkennung
+- Tool-Pfade fuer `yt-dlp.exe` und `whisper.exe` automatisch erkennen oder manuell speichern
+- Protokollansicht fuer Download und Transkription
+- Info-Tab mit Version, Erstellungsmonat, Website und Kontakt
+- Digital-World-Logo als App-Header und Windows-Icon
+
+## App-Info
+
+- App Name: Digital World YouTube Transcriber
+- Version: 1.0.0
+- Erstellt: Mai 2026
+- Website: https://digital-world.dev
+- Kontakt: kontakt@digital-world.dev
+
+## Installation
+
+### Portable EXE
+
+Die fertige Windows-App liegt nach dem Build hier:
+
+```powershell
+.\app\dist\Digital-World-YouTube-Transcriber.exe
+```
+
+### Installer-Paket
+
+Das aktuelle Release enthaelt einen einfachen Windows-Installer:
+
+```powershell
+.\app\release\Digital-World-YouTube-Transcriber-1.0.0\Digital-World-YouTube-Transcriber-Installer-1.0.0.exe
+```
+
+Dieser Installer kopiert die App nach `%LOCALAPPDATA%\Programs\Digital World YouTube Transcriber`, erstellt Verknuepfungen und startet danach das Dependency-Skript fuer `yt-dlp`, OpenAI Whisper und FFmpeg.
+
+Das Projekt enthaelt ein Inno-Setup-Skript:
+
+```text
+app\installer\Digital-World-YouTube-Transcriber.iss
+```
+
+Wenn Inno Setup 6 installiert ist, erzeugt `app\build-release.cmd` automatisch einen Setup-Installer. Der Installer kann nach der App-Installation optional diese Laufzeit-Abhaengigkeiten installieren oder aktualisieren:
+
+- Python 3, falls ueber `winget` verfuegbar
+- `yt-dlp`
+- `openai-whisper`
+- `typing_extensions`
+- FFmpeg ueber `winget`
+
+Ohne Inno Setup wird trotzdem ein Release-Ordner mit EXE, README, Runtime-Anforderungen und Installer-Skript erstellt.
+
+## Voraussetzungen
+
+Fuer die Transkription braucht Windows:
+
+- Python 3.11 oder neuer
+- `yt-dlp`
+- `openai-whisper`
+- FFmpeg im PATH
+
+Die Abhaengigkeiten koennen manuell installiert werden:
+
+```powershell
+python -m pip install --upgrade yt-dlp openai-whisper typing_extensions
+winget install --id Gyan.FFmpeg -e --source winget
+```
+
+## Entwicklung
+
+Script-Version starten:
+
+```powershell
+.\app\Start-YouTube-Transcriber.cmd
+```
+
+Release neu bauen:
+
+```powershell
+.\app\build-release.cmd
+```
+
+Der Build erzeugt:
+
+- `app\dist\Digital-World-YouTube-Transcriber.exe`
+- `app\dist\Digital-World-YouTube-Transcriber-Installer-1.0.0.exe`
+- `app\release\Digital-World-YouTube-Transcriber-1.0.0\`
+- `app\release\Digital-World-YouTube-Transcriber-1.0.0.zip`
+- optional `app\dist\Digital-World-YouTube-Transcriber-Setup-1.0.0.exe`, wenn Inno Setup installiert ist
+
+## GitHub-Beschreibung
+
+**Kurzbeschreibung:**  
+Windows desktop app for downloading YouTube videos with yt-dlp and transcribing them locally with OpenAI Whisper.
+
+**Ausfuehrliche Beschreibung:**  
+Digital World YouTube Transcriber is a small Windows desktop tool for creators, researchers and teams that frequently transcribe YouTube videos. Paste a YouTube URL, choose an output folder, download the video with yt-dlp and generate a local Whisper transcript in the same directory. The app stores tool paths and preferences, includes a clear progress log, and ships with release assets for GitHub and an optional installer workflow.
+
+## Rechtlicher Hinweis
+
+Bitte nur Inhalte herunterladen und transkribieren, fuer die du die notwendigen Rechte oder eine entsprechende Erlaubnis hast. YouTube-Nutzungsbedingungen und Urheberrechte muessen beachtet werden.

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+
+app/build/
+app/dist/
+app/release/
+app/*.spec
+app/yt_transcriber_config.json
+app/installer/*.sed
+
+# Local scratch/private files
+app/email BR Warburg Bank.txt
