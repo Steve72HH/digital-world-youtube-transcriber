@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-set VERSION=1.0.0
+set VERSION=1.1.0
 set APP_EXE=Digital-World-YouTube-Transcriber.exe
 set RELEASE_DIR=%~dp0release\Digital-World-YouTube-Transcriber-%VERSION%
 

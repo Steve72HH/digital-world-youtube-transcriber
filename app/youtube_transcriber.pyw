@@ -1,21 +1,26 @@
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
+import webbrowser
 from pathlib import Path
 from tkinter import BooleanVar, PhotoImage, StringVar, Tk, filedialog, messagebox
 from tkinter import ttk
 
 
 APP_NAME = "Digital World YouTube Transcriber"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_CREATED = "Mai 2026"
 APP_WEBSITE = "digital-world.dev"
 APP_CONTACT = "kontakt@digital-world.dev"
+GITHUB_REPO = "Steve72HH/digital-world-youtube-transcriber"
+LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 DEFAULT_OUTPUT_DIR = Path("I:/transkriptions")
 DOWNLOAD_TEMPLATE = "%(uploader)s-%(id)s.%(ext)s"
 VIDEO_EXTENSIONS = {
@@ -57,6 +62,12 @@ def load_config() -> dict:
         "model": "small",
         "language": "de",
         "open_folder": True,
+        "platform": "Auto",
+        "export_txt": True,
+        "export_md": False,
+        "export_pdf": False,
+        "timestamps": False,
+        "check_updates": True,
     }
     if not CONFIG_PATH.exists():
         return defaults
@@ -70,6 +81,111 @@ def load_config() -> dict:
 
 def save_config(config: dict) -> None:
     CONFIG_PATH.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def parse_version(version: str) -> tuple[int, int, int]:
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", version)
+    if not match:
+        return (0, 0, 0)
+    return tuple(int(part) for part in match.groups())
+
+
+def seconds_to_stamp(seconds: float) -> str:
+    total = int(seconds)
+    hours = total // 3600
+    minutes = (total % 3600) // 60
+    secs = total % 60
+    if hours:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def plain_transcript(segments: list[dict], timestamps: bool) -> str:
+    lines = []
+    for segment in segments:
+        text = str(segment.get("text", "")).strip()
+        if not text:
+            continue
+        if timestamps:
+            start = seconds_to_stamp(float(segment.get("start", 0)))
+            end = seconds_to_stamp(float(segment.get("end", 0)))
+            lines.append(f"[{start} - {end}] {text}")
+        else:
+            lines.append(text)
+    return "\n".join(lines).strip() + "\n"
+
+
+def markdown_transcript(video_path: Path, segments: list[dict], timestamps: bool) -> str:
+    body = plain_transcript(segments, timestamps)
+    return f"# Transkript\n\n**Quelle:** `{video_path.name}`\n\n{body}"
+
+
+def pdf_escape(text: str) -> str:
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def wrap_line(line: str, width: int = 92) -> list[str]:
+    words = line.split()
+    if not words:
+        return [""]
+    lines = []
+    current = words[0]
+    for word in words[1:]:
+        if len(current) + len(word) + 1 > width:
+            lines.append(current)
+            current = word
+        else:
+            current += " " + word
+    lines.append(current)
+    return lines
+
+
+def write_simple_pdf(path: Path, title: str, text: str) -> None:
+    wrapped = [title, ""]
+    for line in text.splitlines():
+        wrapped.extend(wrap_line(line))
+
+    pages = []
+    for index in range(0, len(wrapped), 44):
+        pages.append(wrapped[index : index + 44])
+
+    objects: list[bytes] = []
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    page_refs = " ".join(f"{3 + idx * 2} 0 R" for idx in range(len(pages)))
+    objects.append(f"<< /Type /Pages /Kids [{page_refs}] /Count {len(pages)} >>".encode("ascii"))
+
+    for idx, page_lines in enumerate(pages):
+        page_obj = 3 + idx * 2
+        content_obj = page_obj + 1
+        objects.append(
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /Contents {content_obj} 0 R >>".encode(
+                "ascii"
+            )
+        )
+        stream_lines = ["BT", "/F1 10 Tf", "50 790 Td", "14 TL"]
+        for line in page_lines:
+            safe = pdf_escape(line).encode("cp1252", errors="replace").decode("cp1252")
+            stream_lines.append(f"({safe}) Tj")
+            stream_lines.append("T*")
+        stream_lines.append("ET")
+        stream = "\n".join(stream_lines).encode("cp1252", errors="replace")
+        objects.append(b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream")
+
+    content = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for idx, obj in enumerate(objects, start=1):
+        offsets.append(len(content))
+        content.extend(f"{idx} 0 obj\n".encode("ascii"))
+        content.extend(obj)
+        content.extend(b"\nendobj\n")
+
+    xref_pos = len(content)
+    content.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    content.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        content.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    content.extend(f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n".encode("ascii"))
+    path.write_bytes(bytes(content))
 
 
 def executable_exists(path: str) -> bool:
@@ -179,14 +295,23 @@ class TranscriberApp:
         self.whisper_path = StringVar(value=self.config["whisper_path"])
         self.model = StringVar(value=self.config["model"])
         self.language = StringVar(value=self.config["language"])
+        self.platform = StringVar(value=self.config["platform"])
         self.open_folder = BooleanVar(value=bool(self.config["open_folder"]))
+        self.export_txt = BooleanVar(value=bool(self.config["export_txt"]))
+        self.export_md = BooleanVar(value=bool(self.config["export_md"]))
+        self.export_pdf = BooleanVar(value=bool(self.config["export_pdf"]))
+        self.timestamps = BooleanVar(value=bool(self.config["timestamps"]))
+        self.check_updates = BooleanVar(value=bool(self.config["check_updates"]))
         self.status = StringVar(value="Bereit")
+        self.update_status = StringVar(value="Nicht geprüft")
         self.log_queue: queue.Queue[str] = queue.Queue()
         self.worker: threading.Thread | None = None
 
         self.logo_image = None
         self.build_ui()
         self.root.after(120, self.flush_log_queue)
+        if self.check_updates.get():
+            self.root.after(900, lambda: self.check_for_updates(silent=True))
 
     def build_ui(self) -> None:
         self.root.configure(bg="#f7f8fb")
@@ -222,7 +347,7 @@ class TranscriberApp:
         ttk.Label(title_box, text="YouTube Transcriber", style="Header.TLabel").pack(anchor="w")
         ttk.Label(
             title_box,
-            text="Video laden, in I:\\transkriptions speichern und direkt mit Whisper transkribieren.",
+            text="YouTube, TikTok und weitere Videos laden, lokal speichern und direkt mit Whisper transkribieren.",
             style="HeaderSmall.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -234,8 +359,18 @@ class TranscriberApp:
         body.columnconfigure(1, weight=1)
 
         row = 0
-        ttk.Label(body, text="YouTube URL").grid(row=row, column=0, sticky="w", pady=(0, 8))
+        ttk.Label(body, text="Video URL").grid(row=row, column=0, sticky="w", pady=(0, 8))
         ttk.Entry(body, textvariable=self.url).grid(row=row, column=1, sticky="ew", pady=(0, 8), padx=(12, 0))
+
+        row += 1
+        ttk.Label(body, text="Plattform").grid(row=row, column=0, sticky="w", pady=8)
+        ttk.Combobox(
+            body,
+            textvariable=self.platform,
+            values=("Auto", "YouTube", "TikTok"),
+            state="readonly",
+            width=16,
+        ).grid(row=row, column=1, sticky="w", pady=8, padx=(12, 0))
 
         row += 1
         ttk.Label(body, text="Zielordner").grid(row=row, column=0, sticky="w", pady=8)
@@ -279,6 +414,15 @@ class TranscriberApp:
         ttk.Checkbutton(options, text="Ordner danach öffnen", variable=self.open_folder).pack(side="left", padx=(18, 0))
 
         row += 1
+        ttk.Label(body, text="Export").grid(row=row, column=0, sticky="w", pady=8)
+        export_options = ttk.Frame(body)
+        export_options.grid(row=row, column=1, sticky="w", pady=8, padx=(12, 0))
+        ttk.Checkbutton(export_options, text="TXT", variable=self.export_txt).pack(side="left")
+        ttk.Checkbutton(export_options, text="Markdown", variable=self.export_md).pack(side="left", padx=(14, 0))
+        ttk.Checkbutton(export_options, text="PDF", variable=self.export_pdf).pack(side="left", padx=(14, 0))
+        ttk.Checkbutton(export_options, text="Zeitstempel", variable=self.timestamps).pack(side="left", padx=(18, 0))
+
+        row += 1
         actions = ttk.Frame(body)
         actions.grid(row=row, column=0, columnspan=3, sticky="ew", pady=(18, 14))
         self.start_button = ttk.Button(actions, text="Download & Transkription starten", style="Primary.TButton", command=self.start)
@@ -297,6 +441,10 @@ class TranscriberApp:
         notebook.add(info, text="Info")
         self.build_info_tab(info)
 
+        updates = ttk.Frame(notebook, padding=32)
+        notebook.add(updates, text="Updates")
+        self.build_updates_tab(updates)
+
     def build_info_tab(self, parent) -> None:
         parent.columnconfigure(1, weight=1)
         ttk.Label(parent, text=APP_NAME, style="InfoTitle.TLabel").grid(
@@ -313,6 +461,22 @@ class TranscriberApp:
         for index, (label, value) in enumerate(rows, start=1):
             ttk.Label(parent, text=label, style="Muted.TLabel").grid(row=index, column=0, sticky="w", pady=8, padx=(0, 28))
             ttk.Label(parent, text=value, style="InfoValue.TLabel").grid(row=index, column=1, sticky="w", pady=8)
+
+    def build_updates_tab(self, parent) -> None:
+        parent.columnconfigure(0, weight=1)
+        ttk.Label(parent, text="Updates", style="InfoTitle.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 18))
+        ttk.Label(
+            parent,
+            text="Die App kann GitHub Releases prüfen und bei einer neuen Version den Installer herunterladen.",
+            style="Muted.TLabel",
+        ).grid(row=1, column=0, sticky="w", pady=(0, 18))
+        ttk.Checkbutton(parent, text="Beim Start nach Updates suchen", variable=self.check_updates, command=self.persist_config).grid(
+            row=2, column=0, sticky="w", pady=8
+        )
+        ttk.Label(parent, textvariable=self.update_status, style="InfoValue.TLabel").grid(row=3, column=0, sticky="w", pady=(18, 8))
+        ttk.Button(parent, text="Jetzt nach Updates suchen", command=lambda: self.check_for_updates(silent=False)).grid(
+            row=4, column=0, sticky="w", pady=8
+        )
 
     def make_log_widget(self, parent):
         import tkinter as tk
@@ -362,7 +526,13 @@ class TranscriberApp:
                 "whisper_path": self.whisper_path.get().strip(),
                 "model": self.model.get(),
                 "language": self.language.get(),
+                "platform": self.platform.get(),
                 "open_folder": self.open_folder.get(),
+                "export_txt": self.export_txt.get(),
+                "export_md": self.export_md.get(),
+                "export_pdf": self.export_pdf.get(),
+                "timestamps": self.timestamps.get(),
+                "check_updates": self.check_updates.get(),
             }
         )
 
@@ -389,6 +559,9 @@ class TranscriberApp:
         output_dir = Path(self.output_dir.get().strip())
         yt_dlp = self.yt_dlp_path.get().strip()
         whisper = self.whisper_path.get().strip()
+        if not (self.export_txt.get() or self.export_md.get() or self.export_pdf.get()):
+            messagebox.showwarning(APP_NAME, "Bitte mindestens ein Exportformat auswählen.")
+            return
         if not executable_exists(yt_dlp):
             messagebox.showerror(APP_NAME, "yt-dlp wurde nicht gefunden. Bitte die yt-dlp.exe auswählen.")
             return
@@ -440,7 +613,7 @@ class TranscriberApp:
                 "--output_dir",
                 str(output_dir),
                 "--output_format",
-                "txt",
+                "json",
             ]
             if self.language.get() != "auto":
                 whisper_command.extend(["--language", self.language.get()])
@@ -449,7 +622,8 @@ class TranscriberApp:
             if code != 0:
                 raise RuntimeError(f"Whisper wurde mit Code {code} beendet.")
 
-            self.log("Fertig. Transkript liegt im gleichen Ordner.")
+            self.create_exports(video_path, output_dir)
+            self.log("Fertig. Transkript-Export liegt im gleichen Ordner.")
             self.root.after(0, lambda: self.status.set("Fertig"))
             if self.open_folder.get() and os.name == "nt":
                 os.startfile(str(output_dir))
@@ -467,6 +641,85 @@ class TranscriberApp:
             if candidate.exists() and candidate.is_file() and candidate.suffix.lower() in VIDEO_EXTENSIONS:
                 return candidate
         return newest_media_file(output_dir, started)
+
+    def create_exports(self, video_path: Path, output_dir: Path) -> None:
+        json_path = output_dir / f"{video_path.stem}.json"
+        if not json_path.exists():
+            raise RuntimeError(f"Whisper JSON wurde nicht gefunden: {json_path}")
+
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+        segments = data.get("segments") or []
+        if not segments:
+            text = str(data.get("text", "")).strip()
+            segments = [{"start": 0, "end": 0, "text": text}]
+
+        if self.export_txt.get():
+            target = output_dir / f"{video_path.stem}.txt"
+            target.write_text(plain_transcript(segments, self.timestamps.get()), encoding="utf-8")
+            self.log(f"TXT exportiert: {target.name}")
+        if self.export_md.get():
+            target = output_dir / f"{video_path.stem}.md"
+            target.write_text(markdown_transcript(video_path, segments, self.timestamps.get()), encoding="utf-8")
+            self.log(f"Markdown exportiert: {target.name}")
+        if self.export_pdf.get():
+            target = output_dir / f"{video_path.stem}.pdf"
+            write_simple_pdf(target, f"Transkript - {video_path.name}", plain_transcript(segments, self.timestamps.get()))
+            self.log(f"PDF exportiert: {target.name}")
+
+    def check_for_updates(self, silent: bool) -> None:
+        self.update_status.set("Prüfe Updates...")
+        threading.Thread(target=self.run_update_check, args=(silent,), daemon=True).start()
+
+    def run_update_check(self, silent: bool) -> None:
+        try:
+            request = urllib.request.Request(LATEST_RELEASE_API, headers={"User-Agent": APP_NAME})
+            with urllib.request.urlopen(request, timeout=10) as response:
+                release = json.loads(response.read().decode("utf-8"))
+            latest_tag = release.get("tag_name", "")
+            latest_version = parse_version(latest_tag)
+            current_version = parse_version(APP_VERSION)
+            release_url = release.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
+
+            if latest_version <= current_version:
+                self.root.after(0, lambda: self.update_status.set(f"Aktuell: Version {APP_VERSION}"))
+                if not silent:
+                    self.root.after(0, lambda: messagebox.showinfo(APP_NAME, "Du nutzt bereits die aktuelle Version."))
+                return
+
+            self.root.after(0, lambda: self.update_status.set(f"Update verfügbar: {latest_tag}"))
+            assets = release.get("assets", [])
+            installer = next((asset for asset in assets if asset.get("name", "").endswith(".exe") and "Installer" in asset.get("name", "")), None)
+            if self.root.after:
+                self.root.after(0, lambda: self.offer_update(latest_tag, release_url, installer))
+        except Exception as exc:
+            self.root.after(0, lambda: self.update_status.set("Update-Prüfung fehlgeschlagen"))
+            if not silent:
+                message = str(exc)
+                self.root.after(0, lambda: messagebox.showerror(APP_NAME, f"Update-Prüfung fehlgeschlagen:\n{message}"))
+
+    def offer_update(self, latest_tag: str, release_url: str, installer: dict | None) -> None:
+        if not messagebox.askyesno(APP_NAME, f"Version {latest_tag} ist verfügbar.\n\nInstaller herunterladen und starten?"):
+            webbrowser.open(release_url)
+            return
+        if not installer:
+            webbrowser.open(release_url)
+            return
+        threading.Thread(target=self.download_and_start_update, args=(installer,), daemon=True).start()
+
+    def download_and_start_update(self, installer: dict) -> None:
+        try:
+            url = installer["browser_download_url"]
+            name = installer["name"]
+            target = Path(os.environ.get("TEMP", str(BASE_DIR))) / name
+            self.root.after(0, lambda: self.update_status.set("Lade Update herunter..."))
+            urllib.request.urlretrieve(url, target)
+            self.root.after(0, lambda: self.update_status.set(f"Update geladen: {target.name}"))
+            if os.name == "nt":
+                os.startfile(str(target))
+        except Exception as exc:
+            message = str(exc)
+            self.root.after(0, lambda: self.update_status.set("Update-Download fehlgeschlagen"))
+            self.root.after(0, lambda: messagebox.showerror(APP_NAME, f"Update-Download fehlgeschlagen:\n{message}"))
 
     def run(self) -> None:
         self.root.mainloop()

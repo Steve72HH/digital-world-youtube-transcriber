@@ -12,6 +12,7 @@ if not exist "%TARGET%" mkdir "%TARGET%"
 if not exist "%TARGET%\tools" mkdir "%TARGET%\tools"
 if not exist "%STARTMENU%" mkdir "%STARTMENU%"
 
+taskkill /IM "Digital-World-YouTube-Transcriber.exe" /F >nul 2>nul
 copy /y "Digital-World-YouTube-Transcriber.exe" "%TARGET%\" >nul
 copy /y "requirements-runtime.txt" "%TARGET%\" >nul
 copy /y "install-dependencies.ps1" "%TARGET%\tools\" >nul

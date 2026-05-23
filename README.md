@@ -1,16 +1,19 @@
 # Digital World YouTube Transcriber
 
-Desktop-App fuer Windows, die YouTube-Videos mit `yt-dlp` herunterlaedt und sie anschliessend mit OpenAI Whisper transkribiert. Die Videodatei und das Texttranskript landen standardmaessig im gleichen Zielordner, z. B. `I:\transkriptions`.
+Desktop-App fuer Windows, die YouTube- und TikTok-Videos mit `yt-dlp` herunterlaedt und sie anschliessend lokal mit OpenAI Whisper transkribiert. Die Videodatei und die exportierten Transkripte landen standardmaessig im gleichen Zielordner, z. B. `I:\transkriptions`.
 
 ![Digital World YouTube Transcriber](app/assets/logo.png)
 
 ## Features
 
-- YouTube-URL einfuegen und Download starten
+- YouTube- oder TikTok-URL einfuegen und Download starten
 - Automatische Ablage im konfigurierbaren Zielordner
 - Transkription mit OpenAI Whisper
 - Whisper-Modell waehlen: `tiny`, `base`, `small`, `medium`, `large`
 - Sprache waehlen: Deutsch, Englisch oder Auto-Erkennung
+- Export als `.txt`, `.md` und `.pdf`
+- Zeitstempel optional im Export
+- Update-Check gegen GitHub Releases mit Installer-Download
 - Tool-Pfade fuer `yt-dlp.exe` und `whisper.exe` automatisch erkennen oder manuell speichern
 - Protokollansicht fuer Download und Transkription
 - Info-Tab mit Version, Erstellungsmonat, Website und Kontakt
@@ -19,7 +22,7 @@ Desktop-App fuer Windows, die YouTube-Videos mit `yt-dlp` herunterlaedt und sie 
 ## App-Info
 
 - App Name: Digital World YouTube Transcriber
-- Version: 1.0.0
+- Version: 1.1.0
 - Erstellt: Mai 2026
 - Website: https://digital-world.dev
 - Kontakt: kontakt@digital-world.dev
@@ -39,7 +42,7 @@ Die fertige Windows-App liegt nach dem Build hier:
 Das aktuelle Release enthaelt einen einfachen Windows-Installer:
 
 ```powershell
-.\app\release\Digital-World-YouTube-Transcriber-1.0.0\Digital-World-YouTube-Transcriber-Installer-1.0.0.exe
+.\app\release\Digital-World-YouTube-Transcriber-1.1.0\Digital-World-YouTube-Transcriber-Installer-1.1.0.exe
 ```
 
 Dieser Installer kopiert die App nach `%LOCALAPPDATA%\Programs\Digital World YouTube Transcriber`, erstellt Verknuepfungen und startet danach das Dependency-Skript fuer `yt-dlp`, OpenAI Whisper und FFmpeg.
@@ -93,18 +96,18 @@ Release neu bauen:
 Der Build erzeugt:
 
 - `app\dist\Digital-World-YouTube-Transcriber.exe`
-- `app\dist\Digital-World-YouTube-Transcriber-Installer-1.0.0.exe`
-- `app\release\Digital-World-YouTube-Transcriber-1.0.0\`
-- `app\release\Digital-World-YouTube-Transcriber-1.0.0.zip`
-- optional `app\dist\Digital-World-YouTube-Transcriber-Setup-1.0.0.exe`, wenn Inno Setup installiert ist
+- `app\dist\Digital-World-YouTube-Transcriber-Installer-1.1.0.exe`
+- `app\release\Digital-World-YouTube-Transcriber-1.1.0\`
+- `app\release\Digital-World-YouTube-Transcriber-1.1.0.zip`
+- optional `app\dist\Digital-World-YouTube-Transcriber-Setup-1.1.0.exe`, wenn Inno Setup installiert ist
 
 ## GitHub-Beschreibung
 
 **Kurzbeschreibung:**  
-Windows desktop app for downloading YouTube videos with yt-dlp and transcribing them locally with OpenAI Whisper.
+Windows desktop app for downloading YouTube and TikTok videos with yt-dlp and transcribing them locally with OpenAI Whisper.
 
 **Ausfuehrliche Beschreibung:**  
-Digital World YouTube Transcriber is a small Windows desktop tool for creators, researchers and teams that frequently transcribe YouTube videos. Paste a YouTube URL, choose an output folder, download the video with yt-dlp and generate a local Whisper transcript in the same directory. The app stores tool paths and preferences, includes a clear progress log, and ships with release assets for GitHub and an optional installer workflow.
+Digital World YouTube Transcriber is a small Windows desktop tool for creators, researchers and teams that frequently transcribe online videos. Paste a YouTube or TikTok URL, choose an output folder, download the video with yt-dlp and generate local Whisper transcripts in TXT, Markdown or PDF. Optional timestamps, saved preferences, update checks and release assets make it a practical base for a future Pro version.
 
 ## Rechtlicher Hinweis
 
